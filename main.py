@@ -1,60 +1,29 @@
-with open('data.txt', 'r') as file:
-    data = file.readlines()
+import os
+from datetime import datetime
+from dotenv import load_dotenv
+from langchain.agents import create_agent
+from langchain_google_genai import ChatGoogleGenerativeAI
 
-task = input("Are you an existing customer(yes/no): ")
+load_dotenv()
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-match task:
-    case "yes":
-        customer_id = int(input('please Enter your customer id: '))
-        try:
-            cust_data = data[customer_id].split(",")
-            pin = int(input("Enter your pin: "))
-            if int(cust_data[2]) == pin:
-                action = input("withdraw, deposit or transfer: ")
-                match action:
-                    case "withdraw":
-                        amount = int(input("Enter the  amount to withdraw: "))
-                        if amount < int(cust_data[0]):
-                            cust_data[0] = str(int(cust_data[0]) - amount)
-                            data[customer_id] = ','.join(cust_data) + '\n'
-                            with open('data.txt', 'w') as file:
-                                file.writelines(data)
-                        else:
-                            print("insufficient balance")
-                    case "deposit":
-                        amount = int(input("Enter the  amount to deposit: "))
-                        cust_data[0] = str(int(cust_data[0]) + amount)
-                        data[customer_id] = ','.join(cust_data) + '\n'
-                        with open('data.txt', 'w') as file:
-                            file.writelines(data)
-                    case "transfer":
-                        receiver_id = int(input("enter receivers id: "))
-                        amount = int(input("Enter the  amount to transfer: "))
-                        cust_data1 = data[receiver_id].split(",")
-                        if amount < int(cust_data[0]):
-                            cust_data1[0] = str(int(cust_data1[0]) + amount)
-                            cust_data[0] = str(int(cust_data[0]) - amount)
-                            data[customer_id] = ','.join(cust_data) + '\n'
-                            data[receiver_id] = ','.join(cust_data1) + '\n'
-                            with open('data.txt', 'w') as file:
-                                file.writelines(data)
-                        else:
-                            print("insufficient balance")
-            else:
-                print("wrong pin")
-        except IndexError:
-            print("invalid customer id")
-    case "no":
-        detail = []
-        email = input("Enter your Email")
-        pin = input("gent=rate your pin: ")
-        balance = input("Enter the amount to deposit: ")
-        detail.append(balance)
-        detail.append(email)
-        detail.append(pin)
-        detail = ",".join(detail) + '\n'
-        data.append(detail)
-        cust_id = len(data) - 1
-        print(f"your customer id is {cust_id} please keep it safe")
-        with open('data.txt', 'w') as file:
-            file.writelines(data)
+
+def get_date():
+    """Get the current date"""
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=GOOGLE_API_KEY)
+
+system_prompt = """
+You are a helpful assistant.
+Use the get_date tool if the user is asking about today's date.
+"""
+
+agent = create_agent(model=llm, tools=[get_date], system_prompt=system_prompt)
+while True:
+    user_query = input("Enter a query: ")
+
+    response = agent.invoke({"messages": [{"role": "user", "content": user_query}]})
+
+    print(response["messages"][-1].content)
